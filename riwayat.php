@@ -7,16 +7,15 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Ambri riwayat transaksi user
+// Ambil riwayat transaksi user
 $stmt = $conn->prepare("
-    SELECT t.*, p.name as product_name 
-    FROM transactions t 
-    JOIN products p ON t.product_id = p.id 
-    WHERE t.user_id = ? 
-    ORDER BY t.created_at DESC
+    SELECT * FROM transactions
+    WHERE user_id = ?
+    ORDER BY created_at DESC
 ");
 $stmt->execute([$_SESSION['user_id']]);
 $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 
 <!DOCTYPE html>
@@ -40,26 +39,43 @@ $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="container">
         <h1>Riwayat Transaksi</h1>
         <a href="menu.php" class="btn">Kembali ke Menu</a>
-        
-        <?php if(count($transactions) > 0): ?>
+
+        <?php if (count($transactions) > 0): ?>
         <table>
             <tr>
                 <th>No</th>
-                <th>Produk</th>
-                <th>Jumlah</th>
+                <th>Item</th>
                 <th>Total Harga</th>
-                <th>Tanggal</th>
+                <th>Waktu</th>
             </tr>
-            <?php foreach($transactions as $index => $transaction): ?>
+
+            <?php foreach($transactions as $index => $t): ?>
             <tr>
                 <td><?php echo $index + 1; ?></td>
-                <td><?php echo $transaction['product_name']; ?></td>
-                <td><?php echo $transaction['quantity']; ?></td>
-                <td>Rp <?php echo number_format($transaction['total_price'], 0, ',', '.'); ?></td>
-                <td><?php echo date('d/m/Y H:i', strtotime($transaction['created_at'])); ?></td>
+                <td>
+                    <?php
+                    $items = $conn->prepare("
+                        SELECT ti.*, p.name 
+                        FROM transaction_items ti
+                        JOIN products p ON ti.product_id = p.id
+                        WHERE ti.transaction_id = ?
+                    ");
+                    $items->execute([$t['id']]);
+                    $items = $items->fetchAll(PDO::FETCH_ASSOC);
+
+                    foreach ($items as $i) {
+                        echo "- {$i['name']} (x{$i['quantity']})<br>";
+                    }
+                    ?>
+                </td>
+
+                <td>Rp <?php echo number_format($t['total_all'], 0, ',', '.'); ?></td>
+
+                <td><?php echo date('d/m/Y H:i', strtotime($t['created_at'])); ?></td>
             </tr>
             <?php endforeach; ?>
         </table>
+
         <?php else: ?>
         <p style="text-align:center; margin-top:30px;">Belum ada transaksi.</p>
         <?php endif; ?>

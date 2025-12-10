@@ -6,23 +6,21 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Inisialisasi keranjang
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-// Jika user menambah barang
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['product_id'])) {
     $product_id = $_POST['product_id'];
     $qty = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 1;
 
-    // Ambil data produk
+   
     $stmt = $conn->prepare("SELECT * FROM products WHERE id = ?");
     $stmt->execute([$product_id]);
     $product = $stmt->fetch();
 
     if ($product) {
-        // Jika produk sudah ada di keranjang → tambah quantity
+       
         if (isset($_SESSION['cart'][$product_id])) {
     $_SESSION['cart'][$product_id]['quantity'] += $qty;
 } else {
@@ -37,25 +35,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['product_id'])) {
     }
 }
 
-// Hapus item
+
 if (isset($_GET['hapus'])) {
     $hapus = $_GET['hapus'];
     unset($_SESSION['cart'][$hapus]);
 }
-
-// Checkout
 if (isset($_POST['checkout'])) {
+
+    // 1. Hitung total keseluruhan
+    $total_all = 0;
+    foreach ($_SESSION['cart'] as $item) {
+        $total_all += $item['price'] * $item['quantity'];
+    }
+
+    // 2. Insert ke tabel TRANSACTIONS (tanpa kolom items)
+    $stmt = $conn->prepare("
+        INSERT INTO transactions (user_id, total_all)
+        VALUES (?, ?)
+    ");
+    $stmt->execute([$_SESSION['user_id'], $total_all]);
+
+    // 3. Ambil ID transaksi
+    $transaction_id = $conn->lastInsertId();
+
+    // 4. Insert item satu per satu ke TRANSACTION_ITEMS
     foreach ($_SESSION['cart'] as $item) {
         $total = $item['price'] * $item['quantity'];
 
-        $stmt = $conn->prepare("INSERT INTO transactions (user_id, product_id, quantity, total_price) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$_SESSION['user_id'], $item['id'], $item['quantity'], $total]);
+        $stmt = $conn->prepare("
+            INSERT INTO transaction_items (transaction_id, product_id, quantity, total_price)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $transaction_id,
+            $item['id'],
+            $item['quantity'],
+            $total
+        ]);
     }
 
-    $_SESSION['cart'] = []; // kosongkan keranjang
-    header("Location: riwayat.php");
+    // 5. Kosongkan keranjang
+    $_SESSION['cart'] = [];
+
+    // 6. Redirect ke halaman struk
+    header("Location: struk.php?id=" . $transaction_id);
     exit();
 }
+
 
 ?>
 <!DOCTYPE html>
