@@ -13,6 +13,10 @@ $stmt = $conn->query("SELECT * FROM products");
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
+<?php if($_SESSION['role'] == 'admin'): ?>
+    <a href="admin_dashboard.php" class="btn-riwayat" style="background:black; color: white; text-decoration: none;">Admin Panel</a>
+<?php endif; ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>

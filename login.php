@@ -12,11 +12,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user = $stmt->fetch();
     
     if ($user && $password == $user['password']) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        header('Location: menu.php');
-        exit();
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['role'] = $user['role'];
+
+    if ($user['role'] == "admin") {
+        header('Location: admin_dashboard.php');
     } else {
+        header('Location: menu.php');
+    }
+    exit();
+}
+else {
         $error = 'Username atau password salah!';
     }
 }
